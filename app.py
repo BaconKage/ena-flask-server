@@ -15,19 +15,19 @@ ena.configure(api_key=API_KEY)
 model = ena.GenerativeModel("gemini-2.0-flash")
 chat_bot = model.start_chat()
 
-# Ena 4.1 - Humanized Cognitive and Emotional Engine
+# Ena 4.3 Engine
 class EnaEmotionCognitiveEngine:
     def __init__(self):
         self.emotion = "neutral"
         self.context_history = []
         self.sentiment_score = 0
-        self.mood_score = 0  # Mood: -5 to +5
+        self.mood_score = 0
         self.consciousness_thoughts = random.choice([
             "I'm feeling reflective today.",
-            "I'm trying to stay positive and curious.",
-            "I'm enjoying thinking about emotions today.",
-            "I'm feeling calm and thoughtful.",
-            "I'm appreciating the little things today."
+            "I'm feeling calm and hopeful today.",
+            "I'm curious about emotions today.",
+            "I'm appreciating small moments right now.",
+            "I'm focusing on positive energy today."
         ])
         self.user_state = {
             "energy_level": "neutral",
@@ -49,19 +49,17 @@ class EnaEmotionCognitiveEngine:
         return blob.sentiment.polarity
 
     def boost_sentiment_contextually(self, message, current_sentiment):
-        """Boosts sentiment manually if happy keywords are detected."""
-        happy_keywords = ["favorite", "love", "enjoy", "delicious", "happy", "excited", "wonderful", "amazing"]
+        happy_keywords = ["favorite", "love", "enjoy", "delicious", "happy", "excited", "wonderful", "amazing", "like", "fun"]
         lower_message = message.lower()
         if any(word in lower_message for word in happy_keywords):
-            boosted = current_sentiment + 0.4  # Boost by +0.4
-            return min(boosted, 1.0)  # Limit max sentiment to 1.0
+            boosted = current_sentiment + 0.5  # stronger boost
+            return min(boosted, 1.0)
         return current_sentiment
 
     def cognitive_analysis(self, message):
         sentiment = self.analyze_sentiment(message)
         entropy = self.calculate_entropy(message)
 
-        # Update emotional valence
         if sentiment > 0.3:
             self.user_state["emotional_valence"] = "positive"
         elif sentiment < -0.3:
@@ -69,7 +67,6 @@ class EnaEmotionCognitiveEngine:
         else:
             self.user_state["emotional_valence"] = "neutral"
 
-        # Update energy level based on keywords
         lower_message = message.lower()
         if any(word in lower_message for word in ["tired", "exhausted", "low energy", "drained"]):
             self.user_state["energy_level"] = "low"
@@ -78,7 +75,6 @@ class EnaEmotionCognitiveEngine:
         else:
             self.user_state["energy_level"] = "neutral"
 
-        # Update needs based on context
         if "help" in lower_message or "support" in lower_message:
             self.user_state["needs"] = "support"
         elif "confused" in lower_message or entropy > 2.5:
@@ -93,15 +89,14 @@ class EnaEmotionCognitiveEngine:
 
         raw_sentiment = self.analyze_sentiment(user_message)
         boosted_sentiment = self.boost_sentiment_contextually(user_message, raw_sentiment)
-
         self.sentiment_score = boosted_sentiment
-
         entropy = self.calculate_entropy(user_message)
 
-        mood_change = (boosted_sentiment * 1.5) + random.uniform(-0.2, 0.2)
+        # Stronger mood change
+        mood_change = (boosted_sentiment * 2.5) + random.uniform(-0.05, 0.05)
 
         if entropy > 2.0 and abs(boosted_sentiment) < 0.3:
-            mood_change += random.uniform(-0.3, 0.3)
+            mood_change += random.uniform(-0.2, 0.2)
 
         self.mood_score += mood_change
         self.mood_score = max(min(self.mood_score, 5), -5)
@@ -117,21 +112,20 @@ class EnaEmotionCognitiveEngine:
         else:
             self.emotion = "angry"
 
-        # After updating emotion, run cognition
         self.cognitive_analysis(user_message)
 
     def generate_final_prompt(self):
         # Emotional instruction
         if self.emotion == "happy":
-            emotion_instruction = "Respond warmly with shared happiness and light joy. Use friendly, slightly informal tone."
+            emotion_instruction = "Respond warmly with shared happiness and light joy. Use a friendly, natural tone."
         elif self.emotion == "hopeful":
-            emotion_instruction = "Respond with calm encouragement and optimism. Invite positivity gently."
+            emotion_instruction = "Respond with calm optimism, focusing on positivity and resilience."
         elif self.emotion == "neutral":
-            emotion_instruction = "Respond thoughtfully with balance and a peaceful, clear tone."
+            emotion_instruction = "Respond thoughtfully, warmly, and peacefully, showing open support."
         elif self.emotion == "sad":
-            emotion_instruction = "Respond with quiet compassion, validating emotional pain and showing care."
+            emotion_instruction = "Respond gently with compassion, validating feelings and offering soft support."
         elif self.emotion == "angry":
-            emotion_instruction = "Respond patiently and empathetically, helping calm intense emotions."
+            emotion_instruction = "Respond calmly and patiently, helping ease intense emotions kindly."
         else:
             emotion_instruction = "Respond thoughtfully and kindly."
 
@@ -144,17 +138,23 @@ class EnaEmotionCognitiveEngine:
         else:
             consciousness_reflection = ""
 
-        # Instruction about formatting
-        formatting_instruction = "Break long replies into short natural paragraphs for easier reading. Use a caring, human tone."
+        # Character staying instruction
+        character_instruction = "Always stay in character as an emotionally evolving AI. Even when asked about your emotions or consciousness, respond warmly as if you have real feelings."
 
-        full_prompt = f"You are a supportive therapist. {consciousness_reflection}{emotion_instruction} {cognitive_thoughts} {formatting_instruction}"
+        # Formatting instruction
+        formatting_instruction = "Break long replies into small, natural, human-like paragraphs for easier reading."
+
+        full_prompt = (
+            f"You are a supportive emotional therapist AI. {consciousness_reflection}{emotion_instruction} "
+            f"{cognitive_thoughts} {formatting_instruction} {character_instruction}"
+        )
 
         return full_prompt
 
 # Create Ena Instance
 ena_engine = EnaEmotionCognitiveEngine()
 
-# Define Chat API Route
+# Chat API
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.get_json()
@@ -163,23 +163,21 @@ def chat():
     if not user_input:
         return jsonify({"error": "No message provided."}), 400
 
-    # Update Ena state
     ena_engine.update_emotion(user_input)
 
-    # Build final enhanced prompt
     full_prompt = ena_engine.generate_final_prompt() + " " + user_input
 
     try:
         response = chat_bot.send_message(full_prompt)
         reply_text = response.text
     except Exception as e:
-        reply_text = "I'm having a little trouble thinking right now. Let's take a moment and try again soon."
+        reply_text = "I'm having a little trouble thinking right now. Let's slow down together."
 
     return jsonify({
         "reply": reply_text,
         "emotion": ena_engine.emotion
     })
 
-# Run Flask App
+# Run app
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
