@@ -10,7 +10,7 @@ app = Flask(__name__)
 CORS(app)  # Allow frontend access
 
 # Configure Gemini AI
-API_KEY = "AIzaSyBILa0l3c3kHS9Kw04dEBYqFyBxIdej4KY"
+API_KEY = "AIzaSyDU0231dqhaoNV_omE0riT3dG4WALCqMmk"
 ena.configure(api_key=API_KEY)
 model = ena.GenerativeModel("gemini-2.0-flash")
 chat_bot = model.start_chat()
