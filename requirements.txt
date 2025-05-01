@@ -1,5 +1,5 @@
 Flask
 Flask-Cors
 textblob
-google-generativeai
+requests
 gunicorn
