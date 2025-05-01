@@ -9,16 +9,15 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Load Groq API key from environment
-API_KEY = "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"
+# Load API Key from environment variable
+API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+MODEL_NAME = "llama3-8b-8192"
 
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}",
     "Content-Type": "application/json"
 }
-
-MODEL_NAME = "llama3-8b-8192"  # or llama3-70b-8192 if you're using the larger one
 
 class EnaEmotionCognitiveEngine:
     def __init__(self):
