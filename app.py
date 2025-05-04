@@ -20,165 +20,92 @@ HEADERS = {
 
 user_sessions = {}
 
-class EnaTherapistCore:
+class EnaTherapyEngine:
     def __init__(self):
+        self.context = []
         self.emotion = "neutral"
-        self.context_history = []
-        self.sentiment_score = 0
-        self.mood_score = 0
-        self.prev_mood_score = 0
-        self.prev_emotion = "neutral"
-        self.user_state = {
-            "emotional_valence": "neutral",
-            "energy_level": "neutral",
-            "needs": "listening"
+        self.mood = 0
+        self.prev_response = ""
+        self.state = {"valence": "neutral", "energy": "medium", "need": "listening"}
+
+    def update_context(self, user_input):
+        self.context.append(user_input)
+        if len(self.context) > 8:
+            self.context.pop(0)
+
+    def detect_category(self, text):
+        lower = text.lower()
+        if any(w in lower for w in ["died", "loss", "passed away", "funeral"]):
+            return "grief"
+        if any(w in lower for w in ["kill myself", "suicidal", "end it all", "nothing matters", "disappear"]):
+            return "crisis"
+        if any(w in lower for w in ["idk", "nothing", "bored", "meh"]):
+            return "flat"
+        if any(w in lower for w in ["you are weird", "dumb bot", "lol", "haha"]):
+            return "sarcasm"
+        if any(w in lower for w in ["what is life", "meaning of life", "why am i here", "am i a bad person"]):
+            return "deep"
+        if any(w in lower for w in ["anxious", "depressed", "panic", "can't sleep"]):
+            return "mental_health"
+        if any(w in lower for w in ["hate this", "this sucks", "i’m angry", "why me"]):
+            return "vent"
+        return "neutral"
+
+    def analyze_sentiment(self, text):
+        return TextBlob(text).sentiment.polarity
+
+    def generate_prompt(self, user_input):
+        category = self.detect_category(user_input)
+        memory = " ".join(self.context[-3:])
+
+        base = "You are Ena, an emotionally intelligent AI therapist. Avoid repeating facts. Avoid being robotic. Prioritize presence over productivity."
+
+        category_prompts = {
+            "grief": "User is grieving. Respond with tenderness. Validate their loss without rushing them. No 'cheer up'. Just be with them.",
+            "crisis": "User may be in distress or danger. Do not offer medical advice. Be fully present. Say they matter. Offer support and suggest talking more. Never leave them alone emotionally.",
+            "flat": "User is emotionally flat or disengaged. Don't probe. Say it's okay to feel nothing. Offer calm companionship.",
+            "sarcasm": "User is sarcastic or defensive. Don’t react. Respond kindly and curiously, asking if they want to share more genuinely.",
+            "deep": "User asked a philosophical question. Reflect it. Don’t answer. Ask where it’s coming from emotionally.",
+            "mental_health": "User is sharing mental health symptoms. Do not diagnose. Validate their struggle. Ask about how it feels emotionally.",
+            "vent": "User is venting frustration. Do not fix it. Validate. Ask one grounding follow-up.",
+            "neutral": "Respond calmly and openly. Invite gentle exploration. Offer space if user seems unsure."
         }
 
-    def calculate_entropy(self, message):
-        words = message.lower().split()
-        if not words:
-            return 0
-        unique_words = set(words)
-        prob_dist = [words.count(w)/len(words) for w in unique_words]
-        return -sum(p * math.log2(p) for p in prob_dist)
-
-    def analyze_sentiment(self, message):
-        return TextBlob(message).sentiment.polarity
-
-    def boost_sentiment(self, message, sentiment):
-        positive_keywords = ["happy", "excited", "love", "peaceful", "good", "fun", "relax", "chilling"]
-        if any(k in message.lower() for k in positive_keywords):
-            return min(sentiment + 0.3, 1.0)
-        return sentiment
-
-    def update_emotion(self, message):
-        self.context_history.append(message)
-        if len(self.context_history) > 6:
-            self.context_history.pop(0)
-
-        sentiment = self.analyze_sentiment(message)
-        boosted = self.boost_sentiment(message, sentiment)
-        self.sentiment_score = boosted
-        entropy = self.calculate_entropy(message)
-
-        mood_shift = (boosted * 2.5) + random.uniform(-0.1, 0.1)
-        if entropy > 2.2 and abs(boosted) < 0.2:
-            mood_shift += random.uniform(-0.2, 0.1)
-
-        self.mood_score = max(min(self.mood_score + mood_shift, 5), -5)
-
-        if abs(self.mood_score - self.prev_mood_score) < 1:
-            self.emotion = self.prev_emotion
-        else:
-            self.emotion = (
-                "happy" if self.mood_score >= 3 else
-                "hopeful" if self.mood_score >= 1 else
-                "neutral" if self.mood_score > -1 else
-                "sad" if self.mood_score > -4 else
-                "distressed"
-            )
-
-        self.prev_mood_score = self.mood_score
-        self.prev_emotion = self.emotion
-
-        # Emotional valence
-        self.user_state["emotional_valence"] = (
-            "positive" if boosted > 0.3 else
-            "negative" if boosted < -0.3 else
-            "neutral"
-        )
-
-        # Energy level
-        msg = message.lower()
-        if any(w in msg for w in ["tired", "exhausted", "drained", "done"]):
-            self.user_state["energy_level"] = "low"
-        elif any(w in msg for w in ["motivated", "productive", "excited"]):
-            self.user_state["energy_level"] = "high"
-        else:
-            self.user_state["energy_level"] = "neutral"
-
-        # Needs
-        if "help" in msg or "talk" in msg or "support" in msg:
-            self.user_state["needs"] = "support"
-        elif "idk" in msg or "confused" in msg or entropy > 2.8:
-            self.user_state["needs"] = "clarity"
-        else:
-            self.user_state["needs"] = "listening"
-
-    def get_context_memory(self):
-        return "; ".join(self.context_history[-3:])
-
-    def generate_final_prompt(self):
-        last_msg = self.context_history[-1].strip().lower()
-        greetings = ["hi", "hello", "hey", "hii", "hola", "yo"]
-        is_greeting = last_msg in greetings
-
-        if is_greeting:
-            return (
-                "You are Ena, a gentle and attentive AI therapist. The user greeted you. "
-                "Say hello warmly, and invite them to share what's on their mind at their own pace. "
-                "Don't analyze. Just be welcoming and open."
-            )
-
-        avoid_greeting = "Avoid greeting again. You're already in conversation."
-
-        emotion_tone = {
-            "happy": "Use warm encouragement and ask open questions.",
-            "hopeful": "Use affirming, curious tone and offer perspective.",
-            "neutral": "Be calm, reflective and non-intrusive.",
-            "sad": "Be gentle, slow-paced, and emotionally validating.",
-            "distressed": "Be grounding, non-judgmental, and offer space."
-        }[self.emotion]
-
-        memory = self.get_context_memory()
-
-        pacing = (
-            "Only ask 1 short follow-up at a time. Mirror what the user says. "
-            "If user is sarcastic or angry, acknowledge their tone without probing too much. "
-            "Never assume facts unless the user has said them explicitly."
-        )
-
-        return (
-            f"You are Ena, an emotionally aware, grounded AI therapist. {avoid_greeting} "
-            f"Current user emotion: {self.emotion}, energy: {self.user_state['energy_level']}, need: {self.user_state['needs']}. "
-            f"{emotion_tone} {pacing} Use a natural, conversational tone. Avoid inspirational quotes. "
-            f"Recent memory: {memory}"
-        )
+        prompt = f"{base} Category: {category}. {category_prompts[category]} Memory: {memory}"
+        return prompt
 
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json()
-    user_input = data.get("message", "")
+    message = data.get("message", "").strip()
     session_id = request.headers.get("Session-ID", request.remote_addr)
 
+    if not message:
+        return jsonify({"error": "No input provided."}), 400
+
     if session_id not in user_sessions:
-        user_sessions[session_id] = EnaTherapistCore()
+        user_sessions[session_id] = EnaTherapyEngine()
     ena = user_sessions[session_id]
 
-    if not user_input:
-        return jsonify({"error": "No message received."}), 400
-
-    ena.update_emotion(user_input)
-    prompt = ena.generate_final_prompt() + "\n" + user_input
+    ena.update_context(message)
+    prompt = ena.generate_prompt(message) + "\nUser said: " + message
 
     payload = {
         "model": MODEL_NAME,
         "messages": [
-            {
-                "role": "system",
-                "content": f"You are Ena, a compassionate therapist AI. Your job is to listen, reflect, validate and gently respond. Never diagnose. Current emotion: {ena.emotion}. Energy: {ena.user_state['energy_level']}, Need: {ena.user_state['needs']}."
-            },
+            {"role": "system", "content": "Respond like a real, grounded, emotionally intelligent therapist. Don't be robotic or overly chatty."},
             {"role": "user", "content": prompt}
         ]
     }
 
     try:
         response = requests.post(GROQ_API_URL, headers=HEADERS, json=payload)
-        reply = response.json()["choices"][0]["message"]["content"]
+        content = response.json()["choices"][0]["message"]["content"]
+        ena.prev_response = content
     except Exception:
-        reply = "I'm here, but something went wrong on my end. Can we try again in a moment?"
+        content = "I'm here, but something went wrong. Let's pause and try again in a bit."
 
-    return jsonify({"reply": reply, "emotion": ena.emotion})
+    return jsonify({"reply": content})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
