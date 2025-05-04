@@ -9,7 +9,6 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Load API Key from environment variable
 API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 MODEL_NAME = "llama3-8b-8192"
@@ -19,7 +18,6 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-# In-memory user session store
 user_sessions = {}
 
 class EnaEmotionCognitiveEngine:
@@ -55,21 +53,25 @@ class EnaEmotionCognitiveEngine:
         return blob.sentiment.polarity
 
     def boost_sentiment_contextually(self, message, current_sentiment):
-        happy_keywords = ["favorite", "love", "enjoy", "delicious", "happy", "excited", "wonderful", "amazing", "like", "fun"]
+        happy_keywords = [
+            "favorite", "love", "enjoy", "delicious", "happy", "excited",
+            "wonderful", "amazing", "like", "fun", "chilling", "relax", "good",
+            "peace", "fine", "nice", "great", "okay", "ok", "cool", "wbu", "you?"
+        ]
         if any(word in message.lower() for word in happy_keywords):
-            boosted = current_sentiment + 0.5
+            boosted = current_sentiment + 0.3
             return min(boosted, 1.0)
         return current_sentiment
 
-    def cognitive_analysis(self, message):
-        sentiment = self.analyze_sentiment(message)
-        entropy = self.calculate_entropy(message)
-
-        self.user_state["emotional_valence"] = (
-            "positive" if sentiment > 0.3 else
-            "negative" if sentiment < -0.3 else
-            "neutral"
-        )
+    def cognitive_analysis(self, message, sentiment, entropy):
+        if abs(sentiment) < 0.15:
+            self.user_state["emotional_valence"] = "neutral"
+        else:
+            self.user_state["emotional_valence"] = (
+                "positive" if sentiment > 0.3 else
+                "negative" if sentiment < -0.3 else
+                "neutral"
+            )
 
         msg = message.lower()
         self.user_state["energy_level"] = (
@@ -108,14 +110,14 @@ class EnaEmotionCognitiveEngine:
             "angry"
         )
 
-        self.cognitive_analysis(user_message)
+        self.cognitive_analysis(user_message, boosted_sentiment, entropy)
 
     def get_recent_context(self):
         return "Recent topics discussed: " + "; ".join(self.context_history[-3:]) if self.context_history else ""
 
     def generate_final_prompt(self):
         last_user_message = self.context_history[-1] if self.context_history else ""
-        simple_greetings = ["hi", "hello", "hey", "uh hello", "yo", "hii", "hola"]
+        simple_greetings = ["hi", "hello", "hey", "uh hello", "yo", "hii", "hola", "wassup", "wbu", "sup"]
         is_generic = last_user_message.strip().lower() in simple_greetings
 
         if is_generic:
