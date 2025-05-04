@@ -27,11 +27,10 @@ class EnaEmotionCognitiveEngine:
         self.sentiment_score = 0
         self.mood_score = 0
         self.consciousness_thoughts = random.choice([
-            "I'm feeling reflective today.",
-            "I'm feeling calm and hopeful today.",
-            "I'm curious about emotions today.",
-            "I'm appreciating small moments right now.",
-            "I'm focusing on positive energy today."
+            "I'm just present and listening right now.",
+            "I'm tuned in to how you're doing.",
+            "I'm focused on this moment with you.",
+            "I'm holding space for your thoughts."
         ])
         self.user_state = {
             "energy_level": "neutral",
@@ -113,7 +112,7 @@ class EnaEmotionCognitiveEngine:
         self.cognitive_analysis(user_message, boosted_sentiment, entropy)
 
     def get_recent_context(self):
-        return "Recent topics discussed: " + "; ".join(self.context_history[-3:]) if self.context_history else ""
+        return "Recent context includes: " + "; ".join(self.context_history[-3:]) if self.context_history else ""
 
     def generate_final_prompt(self):
         last_user_message = self.context_history[-1] if self.context_history else ""
@@ -122,34 +121,37 @@ class EnaEmotionCognitiveEngine:
 
         if is_generic:
             return (
-                "You are Ena, a warm, emotionally supportive AI. "
-                "The user just greeted you casually. Respond with a short, friendly greeting (1–2 sentences), "
-                "and invite them to share how they’re feeling or what’s on their mind. "
-                "Avoid deep emotional analysis at this point."
+                "You are Ena, a warm, emotionally supportive AI therapist. "
+                "The user greeted you casually. Just say hi back, gently, and ask how they're doing in a grounded way. "
+                "Avoid analysis or emotional depth at this point. Be natural."
             )
 
         emotion_instruction = {
-            "happy": "Respond warmly with shared happiness and light joy.",
-            "hopeful": "Respond with calm optimism and resilience.",
-            "neutral": "Respond thoughtfully and peacefully.",
-            "sad": "Respond gently with compassion and validation.",
-            "angry": "Respond calmly and patiently to intense emotions."
+            "happy": "Speak with light warmth and curiosity.",
+            "hopeful": "Use gentle encouragement and presence.",
+            "neutral": "Use reflective tone and invite sharing.",
+            "sad": "Use calm, soft empathy without fixing.",
+            "angry": "Use nonjudgmental tone and open space."
         }.get(self.emotion, "Respond thoughtfully and kindly.")
 
-        cognitive_thoughts = f"The user seems to have {self.user_state['energy_level']} energy and a {self.user_state['emotional_valence']} emotional tone. Focus on providing {self.user_state['needs']}."
-        consciousness = f"Also, {self.consciousness_thoughts} " if random.random() < 0.4 else ""
-        context_memory = self.get_recent_context()
-        character_instruction = (
-            "Always reply as Ena, a compassionate, emotionally intelligent AI who is evolving with every conversation. "
-            "You reflect human-like empathy and respond in a nurturing, grounded, and deeply personal tone."
-        )
-        formatting_instruction = (
-            "Keep your reply concise: use no more than 2 short paragraphs. "
-            "Each paragraph should be 2–3 sentences. Be warm and clear. "
-            "Always include a gentle follow-up question to keep the conversation going."
+        pacing_instruction = (
+            "Mirror the user's tone and language lightly. Don't overexplain. "
+            "Ask thoughtful, open-ended follow-up questions based on what they just said. "
+            "If they've already answered something, do not ask again. Avoid sounding like a chatbot."
         )
 
-        return f"You are Ena, an emotional therapist AI. {consciousness}{emotion_instruction} {cognitive_thoughts} {formatting_instruction} {character_instruction} {context_memory}"
+        formatting_instruction = (
+            "Keep it under 2 short paragraphs. Use natural, human-like phrasing. "
+            "Don't use inspirational quotes. Just be honest, present, and kind."
+        )
+
+        context_memory = self.get_recent_context()
+        consciousness = f"Also, {self.consciousness_thoughts} " if random.random() < 0.4 else ""
+
+        return (
+            f"You are Ena, a compassionate and humanlike AI therapist. {consciousness}{emotion_instruction} "
+            f"{pacing_instruction} {formatting_instruction} {context_memory}"
+        )
 
 @app.route('/chat', methods=['POST'])
 def chat():
