@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
@@ -18,6 +19,9 @@ HEADERS = {
     "Authorization": f"Bearer {API_KEY}",
     "Content-Type": "application/json"
 }
+
+# NEW: In-memory user session store
+user_sessions = {}
 
 class EnaEmotionCognitiveEngine:
     def __init__(self):
@@ -126,34 +130,39 @@ class EnaEmotionCognitiveEngine:
             "Always reply as Ena, a compassionate, emotionally intelligent AI who is evolving with every conversation. "
             "You reflect human-like empathy and respond in a nurturing, grounded, and deeply personal tone."
         )
-formatting_instruction = (
-    "Keep your reply concise: use no more than 2 short paragraphs. "
-    "Each paragraph should be 2–3 sentences. Be warm and clear. "
-    "Always include a gentle follow-up question to keep the conversation going."
-)
-
+        formatting_instruction = (
+            "Keep your reply concise: use no more than 2 short paragraphs. "
+            "Each paragraph should be 2–3 sentences. Be warm and clear. "
+            "Always include a gentle follow-up question to keep the conversation going."
+        )
 
         return f"You are Ena, an emotional therapist AI. {consciousness}{emotion_instruction} {cognitive_thoughts} {formatting_instruction} {character_instruction} {context_memory}"
-
-ena_engine = EnaEmotionCognitiveEngine()
 
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.get_json()
     user_input = data.get("message", "")
 
+    # Use session ID from header or fallback to IP address
+    session_id = request.headers.get("Session-ID", request.remote_addr)
+
+    # Create a new Ena engine if not already stored
+    if session_id not in user_sessions:
+        user_sessions[session_id] = EnaEmotionCognitiveEngine()
+    ena = user_sessions[session_id]
+
     if not user_input:
         return jsonify({"error": "No message provided."}), 400
 
-    ena_engine.update_emotion(user_input)
-    prompt = ena_engine.generate_final_prompt() + " " + user_input
+    ena.update_emotion(user_input)
+    prompt = ena.generate_final_prompt() + " " + user_input
 
     payload = {
         "model": MODEL_NAME,
         "messages": [
             {
                 "role": "system",
-                "content": f"You are Ena, an emotionally aware and evolving AI therapist. Current emotion: {ena_engine.emotion}. Energy: {ena_engine.user_state['energy_level']}, Valence: {ena_engine.user_state['emotional_valence']}, Needs: {ena_engine.user_state['needs']}."
+                "content": f"You are Ena, an emotionally aware and evolving AI therapist. Current emotion: {ena.emotion}. Energy: {ena.user_state['energy_level']}, Valence: {ena.user_state['emotional_valence']}, Needs: {ena.user_state['needs']}."
             },
             {"role": "user", "content": prompt}
         ]
@@ -162,12 +171,12 @@ def chat():
     try:
         response = requests.post(GROQ_API_URL, headers=HEADERS, json=payload)
         reply_text = response.json()["choices"][0]["message"]["content"]
-    except Exception as e:
+    except Exception:
         reply_text = "Hmm... I'm having a hard time thinking clearly right now. Could we try again in a moment?"
 
     return jsonify({
         "reply": reply_text,
-        "emotion": ena_engine.emotion
+        "emotion": ena.emotion
     })
 
 if __name__ == "__main__":
