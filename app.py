@@ -26,6 +26,8 @@ class EnaEmotionCognitiveEngine:
         self.context_history = []
         self.sentiment_score = 0
         self.mood_score = 0
+        self.prev_mood_score = 0
+        self.prev_emotion = "neutral"
         self.consciousness_thoughts = random.choice([
             "I'm just present and listening right now.",
             "I'm tuned in to how you're doing.",
@@ -101,13 +103,20 @@ class EnaEmotionCognitiveEngine:
 
         self.mood_score = max(min(self.mood_score + mood_change, 5), -5)
 
-        self.emotion = (
-            "happy" if self.mood_score >= 3 else
-            "hopeful" if self.mood_score >= 1 else
-            "neutral" if self.mood_score > -1 else
-            "sad" if self.mood_score > -4 else
-            "angry"
-        )
+        # smooth emotional shifts
+        if abs(self.mood_score - self.prev_mood_score) < 1:
+            self.emotion = self.prev_emotion
+        else:
+            self.emotion = (
+                "happy" if self.mood_score >= 3 else
+                "hopeful" if self.mood_score >= 1 else
+                "neutral" if self.mood_score > -1 else
+                "sad" if self.mood_score > -4 else
+                "angry"
+            )
+
+        self.prev_mood_score = self.mood_score
+        self.prev_emotion = self.emotion
 
         self.cognitive_analysis(user_message, boosted_sentiment, entropy)
 
@@ -125,6 +134,8 @@ class EnaEmotionCognitiveEngine:
                 "The user greeted you casually. Just say hi back, gently, and ask how they're doing in a grounded way. "
                 "Avoid analysis or emotional depth at this point. Be natural."
             )
+
+        avoid_greeting = "Don't greet the user again unless they greet you. Continue naturally without 'Hello' or 'Hi' if this is mid-conversation."
 
         emotion_instruction = {
             "happy": "Speak with light warmth and curiosity.",
@@ -150,7 +161,7 @@ class EnaEmotionCognitiveEngine:
 
         return (
             f"You are Ena, a compassionate and humanlike AI therapist. {consciousness}{emotion_instruction} "
-            f"{pacing_instruction} {formatting_instruction} {context_memory}"
+            f"{pacing_instruction} {formatting_instruction} {avoid_greeting} {context_memory}"
         )
 
 @app.route('/chat', methods=['POST'])
