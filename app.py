@@ -74,6 +74,10 @@ class EnaTherapyEngine:
         prompt = f"{base} Category: {category}. {category_prompts[category]} Memory: {memory}"
         return prompt
 
+@app.route("/", methods=["GET"])
+def health_check():
+    return "ENA Flask Server is live ✅", 200
+
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json()
