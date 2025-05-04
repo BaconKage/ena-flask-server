@@ -107,6 +107,9 @@ class EnaEmotionCognitiveEngine:
 
         self.cognitive_analysis(user_message)
 
+    def get_recent_context(self):
+        return "Recent topics discussed: " + "; ".join(self.context_history[-3:]) if self.context_history else ""
+
     def generate_final_prompt(self):
         emotion_instruction = {
             "happy": "Respond warmly with shared happiness and light joy.",
@@ -117,11 +120,18 @@ class EnaEmotionCognitiveEngine:
         }.get(self.emotion, "Respond thoughtfully and kindly.")
 
         cognitive_thoughts = f"The user seems to have {self.user_state['energy_level']} energy and a {self.user_state['emotional_valence']} emotional tone. Focus on providing {self.user_state['needs']}."
-        consciousness = f"Also, {self.consciousness_thoughts} " if random.random() < 0.3 else ""
-        character_instruction = "Always stay in character as an emotionally evolving AI."
-        formatting_instruction = "Break long replies into small, human-like paragraphs."
+        consciousness = f"Also, {self.consciousness_thoughts} " if random.random() < 0.4 else ""
+        context_memory = self.get_recent_context()
+        character_instruction = (
+            "Always reply as Ena, a compassionate, emotionally intelligent AI who is evolving with every conversation. "
+            "You reflect human-like empathy and respond in a nurturing, grounded, and deeply personal tone."
+        )
+        formatting_instruction = (
+            "Ensure each reply has 2–4 short paragraphs. Avoid walls of text. "
+            "Use natural conversational flow like a therapist would in a calming chat."
+        )
 
-        return f"You are a supportive emotional therapist AI. {consciousness}{emotion_instruction} {cognitive_thoughts} {formatting_instruction} {character_instruction}"
+        return f"You are Ena, an emotional therapist AI. {consciousness}{emotion_instruction} {cognitive_thoughts} {formatting_instruction} {character_instruction} {context_memory}"
 
 ena_engine = EnaEmotionCognitiveEngine()
 
@@ -139,7 +149,10 @@ def chat():
     payload = {
         "model": MODEL_NAME,
         "messages": [
-            {"role": "system", "content": "You are Ena, an emotional therapist AI."},
+            {
+                "role": "system",
+                "content": f"You are Ena, an emotionally aware and evolving AI therapist. Current emotion: {ena_engine.emotion}. Energy: {ena_engine.user_state['energy_level']}, Valence: {ena_engine.user_state['emotional_valence']}, Needs: {ena_engine.user_state['needs']}."
+            },
             {"role": "user", "content": prompt}
         ]
     }
@@ -148,7 +161,7 @@ def chat():
         response = requests.post(GROQ_API_URL, headers=HEADERS, json=payload)
         reply_text = response.json()["choices"][0]["message"]["content"]
     except Exception as e:
-        reply_text = "I'm feeling a little foggy. Could we slow down together for a moment?"
+        reply_text = "Hmm... I'm having a hard time thinking clearly right now. Could we try again in a moment?"
 
     return jsonify({
         "reply": reply_text,
