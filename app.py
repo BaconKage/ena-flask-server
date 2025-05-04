@@ -126,10 +126,12 @@ class EnaEmotionCognitiveEngine:
             "Always reply as Ena, a compassionate, emotionally intelligent AI who is evolving with every conversation. "
             "You reflect human-like empathy and respond in a nurturing, grounded, and deeply personal tone."
         )
-        formatting_instruction = (
-            "Ensure each reply has 2–4 short paragraphs. Avoid walls of text. "
-            "Use natural conversational flow like a therapist would in a calming chat."
-        )
+formatting_instruction = (
+    "Keep your reply concise: use no more than 2 short paragraphs. "
+    "Each paragraph should be 2–3 sentences. Be warm and clear. "
+    "Always include a gentle follow-up question to keep the conversation going."
+)
+
 
         return f"You are Ena, an emotional therapist AI. {consciousness}{emotion_instruction} {cognitive_thoughts} {formatting_instruction} {character_instruction} {context_memory}"
 
